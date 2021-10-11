@@ -21,7 +21,7 @@ wcwidth = "==0.2.5"
 pygit2 = "*"
 
 [dev-packages]
-flake8 = "==3.9.2"
+flake8 = "==4.0.1"
 isort = "*"
 pre-commit = "==2.15.0"
 pylint = "==2.10.2"
