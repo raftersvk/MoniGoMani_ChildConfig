@@ -196,6 +196,7 @@
                 "sha256:82995b728fa4cdac29bc6118d9da02e2f7f61f7b93ab430ca8ff40397ed8290b"
             ],
             "version": "==0.3.1"
+
         },
         "kiwisolver": {
             "hashes": [
@@ -331,6 +332,7 @@
                 "sha256:b55b953a1bdb465f4dc181758570d321db4ac23005f90ffd2b434cc6609a63dd"
             ],
             "version": "==1.22.0"
+
         },
         "packaging": {
             "hashes": [

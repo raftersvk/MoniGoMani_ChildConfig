@@ -14,10 +14,14 @@ from pandas import DataFrame
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 from freqtrade.constants import ListPairsWithTimeframes
 
+#others TA libs
+from technical.indicators import laguerre
+import pandas_ta as pta
+
 
 # Master Framework file must reside in same folder as Strategy file
 sys.path.append(str(Path(__file__).parent))
-from MasterMoniGoManiHyperStrategy import MasterMoniGoManiHyperStrategy
+from MasterMoniGoManiHyperStrategy_SSL import MasterMoniGoManiHyperStrategy_SSL
 # ---- ↑ Do not remove these libs ↑ ------------------------------------------------------------------------------------
 
 # Define the Weighted Buy Signals to be used by MGM
@@ -26,8 +30,8 @@ buy_signals = {
     'macd': lambda df: (df['macd'] > df['macdsignal']),
     # Weighted Buy Signal: MFI crosses above 20 (Under-bought / low-price and rising indication)
     'mfi': lambda df: (qtpylib.crossed_above(df['mfi'], 20)),
-    # Weighted Buy Signal: Rolling VWAP crosses above current price
-    'rolling_vwap_cross': lambda df: (qtpylib.crossed_above(df['rolling_vwap'], df['close'])),
+    # Weighted Buy Signal: VWAP crosses above current price
+    'vwap_cross': lambda df: (qtpylib.crossed_above(df['vwap'], df['close'])),
     # Weighted Buy Signal: Price crosses above Parabolic SAR
     'sar_cross': lambda df: (qtpylib.crossed_above(df['sar'], df['close'])),
     # Weighted Buy Signal: Stochastic Slow below 20 (Under-bought, indication of starting to move up)
@@ -46,8 +50,8 @@ sell_signals = {
     'macd': lambda df: (df['macd'] < df['macdsignal']),
     # Weighted Sell Signal: MFI crosses below 80 (Over-bought / high-price and dropping indication)
     'mfi': lambda df: (qtpylib.crossed_below(df['mfi'], 80)),
-    # Weighted Sell Signal: Rolling VWAP crosses below current price
-    'rolling_vwap_cross': lambda df: (qtpylib.crossed_below(df['rolling_vwap'], df['close'])),
+    # Weighted Sell Signal: VWAP crosses below current price
+    'vwap_cross': lambda df: (qtpylib.crossed_below(df['vwap'], df['close'])),
     # Weighted Sell Signal: Price crosses below Parabolic SAR
     'sar_cross': lambda df: (qtpylib.crossed_below(df['sar'], df['close'])),
     # Weighted Sell Signal: Stochastic Slow above 80 (Over-bought, indication of starting to move down)
@@ -62,11 +66,11 @@ sell_signals = {
 
 
 # Returns the method responsible for decorating the current class with all the parameters of the MGM
-generate_mgm_attributes = MasterMoniGoManiHyperStrategy.generate_mgm_attributes(buy_signals, sell_signals)
+generate_mgm_attributes = MasterMoniGoManiHyperStrategy_SSL.generate_mgm_attributes(buy_signals, sell_signals)
 
 
 @generate_mgm_attributes
-class MoniGoManiHyperStrategy(MasterMoniGoManiHyperStrategy):
+class MoniGoManiHyperStrategy_SSL(MasterMoniGoManiHyperStrategy_SSL):
     """
     ####################################################################################
     ####                                                                            ####
@@ -99,18 +103,20 @@ class MoniGoManiHyperStrategy(MasterMoniGoManiHyperStrategy):
 
     # Plot configuration to show all Weighted Signals/Indicators used by MoniGoMani in FreqUI.
     # Also loads in MGM Framework Plots for Buy/Sell Signals/Indicators and Trend Detection.
-    plot_config = MasterMoniGoManiHyperStrategy.populate_frequi_plots({
-        # Main Plots Signals/Indicators (SMAs, EMAs, Bollinger Bands, Rolling VWAP, TEMA)
+    plot_config = MasterMoniGoManiHyperStrategy_SSL.populate_frequi_plots({
+        # Main Plots Signals/Indicators (SMAs, EMAs, Bollinger Bands, VWAP, TEMA)
         'main_plot': {
-            'sma9': {'color': '#2c05f6'},
-            'sma50': {'color': '#19038a'},
-            'sma200': {'color': '#0d043b'},
-            'ema9': {'color': '#12e5a6'},
-            'ema50': {'color': '#0a8963'},
-            'ema200': {'color': '#074b36'},
-            'bb_middleband': {'color': '#6f1a7b'},
-            'rolling_vwap': {'color': '#727272'},
-            'tema': {'color': '#9345ee'}
+            #'sma9': {'color': '#2c05f6'},
+            #'sma50': {'color': '#19038a'},
+            #'sma200': {'color': '#0d043b'},
+            #'ema9': {'color': '#12e5a6'},
+            #'ema50': {'color': '#0a8963'},
+            #'ema200': {'color': '#074b36'},
+            #'bb_middleband': {'color': '#6f1a7b'},
+            #'vwap': {'color': '#727272'},
+            #'tema': {'color': '#9345ee'}
+            'SSLATR_up': {'color': '#ae231c'},
+            'SSLATR_down': {'color': '#7fba3c'},
         },
         # Sub Plots - Each dict defines one additional plot
         'subplots': {
@@ -130,7 +136,11 @@ class MoniGoManiHyperStrategy(MasterMoniGoManiHyperStrategy):
             },
             'Stochastic Slow': {
                 'slowk': {'color': '#14efe7'}
-            }
+            },
+            'MGMTrend': {
+                'mgm_trend': {'color': '#19038a'},
+                'mgm_trend_ssl': {'color': '#ae231c'},
+            },
         }
     })
 
@@ -144,7 +154,6 @@ class MoniGoManiHyperStrategy(MasterMoniGoManiHyperStrategy):
 
         pairs = self.dp.current_whitelist()
         informative_pairs = [(pair, self.informative_timeframe) for pair in pairs]
-        informative_pairs += [(pair, self.core_trend_timeframe) for pair in pairs]
         return informative_pairs
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -195,7 +204,7 @@ class MoniGoManiHyperStrategy(MasterMoniGoManiHyperStrategy):
 
         # Bollinger Bands
         bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=2)
-        dataframe['bb_middleband'] = bollinger['mid']
+        dataframe['bb_middleband'] = bollinger['mid'] 
 
         # SMA's & EMA's are trend following tools (Should not be used when line goes sideways)
         # SMA - Simple Moving Average (Moves slower compared to EMA, price trend over X periods)
@@ -209,8 +218,9 @@ class MoniGoManiHyperStrategy(MasterMoniGoManiHyperStrategy):
         # Volume Indicators
         # -----------------
 
-        # Rolling VWAP - Volume Weighted Average Price
-        dataframe['rolling_vwap'] = qtpylib.rolling_vwap(dataframe)
+        # VWAP - Volume Weighted Average Price
+        dataframe['vwap'] = qtpylib.rolling_vwap(dataframe)
+
 
         return dataframe
 

@@ -415,7 +415,7 @@ class MGMHurry:
             'type': 'list',
             'name': 'exchange',
             'message': 'Which exchange do you want to use?',
-            'choices': ['binance', 'bittrex', 'bitvavo', 'ftx', 'gateio', 'kraken', 'kucoin'],
+            'choices': ['binance', 'bittrex', 'bitvavo', 'ftx', 'gateio', 'kraken', 'kucoin', 'other'],
             'when': lambda result: result['proceed_exchange']
         }, {
             'type': 'password',
@@ -437,9 +437,20 @@ class MGMHurry:
         if answers == {}:
             sys.exit(1)
 
+        exchange = answers.get('exchange')
+        if exchange == 'other':
+            answer = prompt(questions=[{
+                'type': 'input',
+                'name': 'exchange',
+                'message': 'Please enter CCXT ID of the other exchange that you\'d like to try:\n'
+                           '(WARNING: Support may vary on these!)',
+                'default': self.monigomani_config.get('exchange') or ''
+            }])
+            exchange = answer.get('exchange')
+
         """
         if answers.get('install_type') == 'source':
-            ft_binary = f'source {self.basedir}/.env/bin/activate; freqtrade'
+            ft_binary = f'. {self.basedir}/.env/bin/activate; freqtrade'
         else:
             ft_binary = 'docker-compose run --rm freqtrade'
         """
@@ -447,9 +458,9 @@ class MGMHurry:
             'config': {
                 'username': answers.get('username'),
                 'install_type': 'source',  # answers.get('install_type'),
-                'ft_binary': f'source {self.basedir}/.env/bin/activate; freqtrade',  # ft_binary,
+                'ft_binary': f'. {self.basedir}/.env/bin/activate; freqtrade',  # ft_binary,
                 'timerange': answers.get('timerange'),
-                'exchange': answers.get('exchange') or 'none',
+                'exchange': exchange or 'none',
                 'hyperopt': {
                     'strategy': answers.get('ho_strategy'),
                     'loss': answers.get('ho_loss'),
@@ -471,7 +482,7 @@ class MGMHurry:
 
         if answers.get('proceed_exchange') is True:
             self.monigomani_config.save_exchange_credentials({
-                'exchange': answers.get('exchange'),
+                'exchange': exchange,
                 'api_key': answers.get('api_key'),
                 'api_secret': answers.get('api_secret')
             })
@@ -568,6 +579,9 @@ class MGMHurry:
 
         command = (f'{self.monigomani_config.config["ft_binary"]} download-data --timerange {timerange} '
                    f'-t {tickers} {self.monigomani_config.command_configs()}')
+
+        if self.monigomani_config.config['exchange'] == 'kraken':
+            command += ' --dl-trades'
 
         self.logger.debug(command)
         self.monigomani_cli.run_command(command)
@@ -674,6 +688,7 @@ class MGMHurry:
                 (strategy == 'MoniGoManiHyperStrategy') and (
                 os.path.isfile(self.monigomani_config.get_config_filepath('mgm-config-hyperopt')) is True)):
             initial_run = False
+            self.logger.info('🍺 Previous HyperOpt run found! This HyperOpt run will be refining on the already existing HyperOpt output.')
 
         self.logger.info(Color.title('👉 Starting HyperOpt run. Keep calm while your computer burns 🔥'))
 
