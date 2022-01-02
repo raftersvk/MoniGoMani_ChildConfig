@@ -1039,6 +1039,34 @@ class MasterMoniGoManiHyperStrategy(IStrategy, ABC):
 
         return candle_time
 
+    def convert_candle_time(self, current_time: datetime, current_candle: int = 1) -> datetime:
+        """
+        Converts the current_time to a candle_time (of an informative_timeframe candle size),
+        which can be used to query the dataframe
+
+        :param current_time: (datetime) Current time object
+        :param current_candle: (int) Amount of candles to offset (look back) from the current_time
+        :return: (datetime) Converted candle time object
+        """
+        # Convert the candle time to the one being used by the 'informative_timeframe'
+        candle_multiplier = int(self.informative_timeframe.rstrip('mhdwM'))
+        candle_time = (timeframe_to_prev_date(self.informative_timeframe, current_time) -
+                       timedelta(minutes=int(current_candle * candle_multiplier)))
+        if self.informative_timeframe.find('h') != -1:
+            candle_time = (timeframe_to_prev_date(self.informative_timeframe, current_time) -
+                           timedelta(hours=int(current_candle * candle_multiplier)))
+        elif self.informative_timeframe.find('d') != -1:
+            candle_time = (timeframe_to_prev_date(self.informative_timeframe, current_time) -
+                           timedelta(days=int(current_candle * candle_multiplier)))
+        elif self.informative_timeframe.find('w') != -1:
+            candle_time = (timeframe_to_prev_date(self.informative_timeframe, current_time) -
+                           timedelta(weeks=int(current_candle * candle_multiplier)))
+        elif self.informative_timeframe.find('M') != -1:
+            candle_time = (timeframe_to_prev_date(self.informative_timeframe, current_time) -
+                           timedelta64(int(current_candle * candle_multiplier), 'M'))
+
+        return candle_time
+
     def confirm_trade_entry(self, pair: str, order_type: str, amount: float, rate: float,
                             time_in_force: str, current_time: datetime, **kwargs) -> bool:
         """
