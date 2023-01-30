@@ -31,7 +31,7 @@ yaspin = "==2.1.0"
 [dev-packages]
 flake8 = "==4.0.1"
 isort = "*"
-pre-commit = "==2.17.0"
+pre-commit = "==3.0.2"
 pylint = "==2.12.2"
 pytest = "==7.1.0"
 pytest-cov = "==3.0.0"
